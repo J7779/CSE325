@@ -1,0 +1,49 @@
+<!-- reusable recipe card component -->
+<a href="/recipe/@Recipe.Id" class="recipe-card">
+    <div class="recipe-card-image-container">
+        @if (!string.IsNullOrEmpty(Recipe.ImageUrl))
+        {
+            <img src="@Recipe.ImageUrl" alt="@Recipe.Title" class="recipe-card-image" loading="lazy" />
+        }
+        else
+        {
+            <div class="recipe-card-image" style="background: linear-gradient(135deg, var(--primary-light), var(--primary)); display: flex; align-items: center; justify-content: center; font-size: 3rem;">
+                🍽️
+            </div>
+        }
+        @if (Recipe.IsFeatured)
+        {
+            <span class="recipe-card-badge">Featured</span>
+        }
+    </div>
+    <div class="recipe-card-content">
+        <span class="recipe-card-category">@Recipe.Category</span>
+        <h3 class="recipe-card-title">@Recipe.Title</h3>
+        <p class="recipe-card-description">@Recipe.Description</p>
+        <div class="recipe-card-meta">
+            <span>⏱️ @Recipe.TotalTimeMinutes min</span>
+            <span>👥 @Recipe.Servings servings</span>
+            <span class="difficulty-badge difficulty-@Recipe.Difficulty.ToString().ToLower()">@Recipe.Difficulty</span>
+        </div>
+        @if (ShowFooter)
+        {
+            <div class="recipe-card-footer">
+                <div class="recipe-card-author">
+                    <span class="recipe-card-author-avatar">@(Recipe.AuthorName?[0] ?? 'U')</span>
+                    <span>@Recipe.AuthorName</span>
+                </div>
+                <div class="recipe-card-likes">
+                    ❤️ @Recipe.LikeCount
+                </div>
+            </div>
+        }
+    </div>
+</a>
+
+@code {
+    [Parameter, EditorRequired]
+    public Recipe Recipe { get; set; } = null!;
+
+    [Parameter]
+    public bool ShowFooter { get; set; } = true;
+}

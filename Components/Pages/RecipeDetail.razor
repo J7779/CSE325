@@ -1,0 +1,333 @@
+@page "/recipe/{Id:int}"
+@inject RecipeService RecipeService
+@inject AuthService AuthService
+@inject CommentService CommentService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>@(_recipe?.Title ?? "Recipe") - FlavorShare</PageTitle>
+
+@if (_isLoading)
+{
+    <div class="loading">
+        <div class="spinner"></div>
+    </div>
+}
+else if (_recipe == null)
+{
+    <div class="empty-state">
+        <div class="empty-state-icon">😕</div>
+        <h3 class="empty-state-title">Recipe not found</h3>
+        <p class="empty-state-text">This recipe might have been deleted or doesn't exist</p>
+        <a href="/recipes" class="btn-primary">Browse Recipes</a>
+    </div>
+}
+else
+{
+    <div class="recipe-detail">
+        <div class="recipe-detail-main">
+            <!-- recipe image -->
+            @if (!string.IsNullOrEmpty(_recipe.ImageUrl))
+            {
+                <img src="@_recipe.ImageUrl" alt="@_recipe.Title" class="recipe-hero-image" />
+            }
+            else
+            {
+                <div class="recipe-hero-image" style="background: linear-gradient(135deg, var(--primary-light), var(--primary)); display: flex; align-items: center; justify-content: center; font-size: 5rem;">
+                    🍽️
+                </div>
+            }
+
+            <!-- recipe header -->
+            <div class="card">
+                <div class="flex justify-between items-center" style="flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <span class="recipe-card-category">@_recipe.Category</span>
+                        @if (!string.IsNullOrEmpty(_recipe.Cuisine))
+                        {
+                            <span class="recipe-card-category" style="margin-left: 0.5rem;">@_recipe.Cuisine</span>
+                        }
+                    </div>
+                    <span class="difficulty-badge difficulty-@_recipe.Difficulty.ToString().ToLower()">
+                        @_recipe.Difficulty
+                    </span>
+                </div>
+
+                <h1 class="page-title mt-2">@_recipe.Title</h1>
+                <p class="page-subtitle">@_recipe.Description</p>
+
+                <!-- action buttons -->
+                <div class="action-buttons mt-2">
+                    <button class="like-btn @(_hasLiked ? "liked" : "")" @onclick="HandleLike">
+                        ❤️ @_recipe.LikeCount Likes
+                    </button>
+                    
+                    @if (AuthService.IsAuthenticated && AuthService.CurrentUser?.Id.ToString() == _recipe.AuthorId)
+                    {
+                        <a href="/recipe/edit/@_recipe.Id" class="btn-secondary">✏️ Edit</a>
+                        <button class="btn-danger" @onclick="HandleDelete">🗑️ Delete</button>
+                    }
+                </div>
+            </div>
+
+            <!-- time and servings info -->
+            <div class="recipe-info-grid">
+                <div class="recipe-info-item">
+                    <div class="recipe-info-value">@_recipe.PrepTimeMinutes</div>
+                    <div class="recipe-info-label">Prep Time (min)</div>
+                </div>
+                <div class="recipe-info-item">
+                    <div class="recipe-info-value">@_recipe.CookTimeMinutes</div>
+                    <div class="recipe-info-label">Cook Time (min)</div>
+                </div>
+                <div class="recipe-info-item">
+                    <div class="recipe-info-value">@_recipe.TotalTimeMinutes</div>
+                    <div class="recipe-info-label">Total Time (min)</div>
+                </div>
+                <div class="recipe-info-item">
+                    <div class="recipe-info-value">@_recipe.Servings</div>
+                    <div class="recipe-info-label">Servings</div>
+                </div>
+            </div>
+
+            <!-- ingredients section -->
+            <div class="card">
+                <h2 class="recipe-section-title">🥗 Ingredients</h2>
+                <ul class="ingredient-list">
+                    @foreach (var ingredient in _recipe.Ingredients.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        <li class="ingredient-item">
+                            <input type="checkbox" class="ingredient-checkbox" aria-label="Mark @ingredient as done" />
+                            <span>@ingredient.Trim()</span>
+                        </li>
+                    }
+                </ul>
+            </div>
+
+            <!-- instructions section -->
+            <div class="card">
+                <h2 class="recipe-section-title">👨‍🍳 Instructions</h2>
+                <ol class="instruction-list">
+                    @foreach (var step in GetInstructionSteps())
+                    {
+                        <li class="instruction-item">@step</li>
+                    }
+                </ol>
+            </div>
+
+            <!-- tags -->
+            @if (!string.IsNullOrEmpty(_recipe.Tags))
+            {
+                <div class="card">
+                    <h2 class="recipe-section-title">🏷️ Tags</h2>
+                    <div class="flex gap-1" style="flex-wrap: wrap;">
+                        @foreach (var tag in _recipe.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                        {
+                            <a href="/recipes?search=@tag.Trim()" class="recipe-card-category">@tag.Trim()</a>
+                        }
+                    </div>
+                </div>
+            }
+
+            <!-- comments section -->
+            <div class="card">
+                <h2 class="recipe-section-title">💬 Comments (@_comments.Count)</h2>
+
+                @if (AuthService.IsAuthenticated)
+                {
+                    <div class="form-group">
+                        <textarea class="form-textarea" 
+                                  placeholder="Share your thoughts about this recipe..."
+                                  @bind="_newComment"
+                                  rows="3"></textarea>
+                        <button class="btn-primary mt-1" @onclick="AddComment" disabled="@string.IsNullOrWhiteSpace(_newComment)">
+                            Post Comment
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-info">
+                        <a href="/login">Login</a> to leave a comment
+                    </div>
+                }
+
+                @if (_comments.Any())
+                {
+                    <div class="comments-section">
+                        @foreach (var comment in _comments)
+                        {
+                            <div class="comment-card">
+                                <div class="comment-header">
+                                    <span class="comment-author">@comment.UserName</span>
+                                    <span class="comment-date">@comment.CreatedAt.ToString("MMM d, yyyy")</span>
+                                </div>
+                                <p class="comment-content">@comment.Content</p>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-secondary text-center mt-2">No comments yet. Be the first!</p>
+                }
+            </div>
+        </div>
+
+        <!-- sidebar -->
+        <div class="recipe-sidebar">
+            <!-- author card -->
+            <div class="author-card">
+                <div class="author-avatar">@(_recipe.AuthorName?[0] ?? 'U')</div>
+                <h3 class="author-name">@_recipe.AuthorName</h3>
+                <p class="author-bio">Recipe creator</p>
+                <a href="/recipes?search=@Uri.EscapeDataString(_recipe.AuthorName ?? "")" class="btn-secondary btn-sm">
+                    View All Recipes
+                </a>
+            </div>
+
+            <!-- nutrition placeholder -->
+            <div class="card">
+                <h3 class="card-title">📊 Quick Info</h3>
+                <div style="margin-top: 1rem;">
+                    <div class="flex justify-between mb-1">
+                        <span>Category:</span>
+                        <strong>@_recipe.Category</strong>
+                    </div>
+                    <div class="flex justify-between mb-1">
+                        <span>Cuisine:</span>
+                        <strong>@(_recipe.Cuisine ?? "Various")</strong>
+                    </div>
+                    <div class="flex justify-between mb-1">
+                        <span>Difficulty:</span>
+                        <strong>@_recipe.Difficulty</strong>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Created:</span>
+                        <strong>@_recipe.CreatedAt.ToString("MMM d, yyyy")</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- share card -->
+            <div class="card">
+                <h3 class="card-title">📤 Share Recipe</h3>
+                <p class="text-secondary mt-1">Love this recipe? Share it with friends!</p>
+                <button class="btn-accent btn-sm mt-2" style="width: 100%;" @onclick="CopyLink">
+                    📋 Copy Link
+                </button>
+                @if (_linkCopied)
+                {
+                    <p class="text-primary text-center mt-1">Link copied!</p>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (_showDeleteConfirm)
+    {
+        <div style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+            <div class="card" style="max-width: 400px; text-align: center;">
+                <h3 class="card-title">Delete Recipe?</h3>
+                <p class="text-secondary mt-2">This action cannot be undone. Are you sure you want to delete this recipe?</p>
+                <div class="flex gap-1 justify-center mt-3">
+                    <button class="btn-secondary" @onclick="() => _showDeleteConfirm = false">Cancel</button>
+                    <button class="btn-danger" @onclick="ConfirmDelete">Yes, Delete</button>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Recipe? _recipe;
+    private List<Comment> _comments = new();
+    private string _newComment = string.Empty;
+    private bool _isLoading = true;
+    private bool _hasLiked = false;
+    private bool _linkCopied = false;
+    private bool _showDeleteConfirm = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRecipe();
+    }
+
+    private async Task LoadRecipe()
+    {
+        try
+        {
+            _recipe = await RecipeService.GetRecipeByIdAsync(Id);
+            if (_recipe != null)
+            {
+                _comments = await CommentService.GetCommentsForRecipeAsync(Id);
+            }
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private List<string> GetInstructionSteps()
+    {
+        if (_recipe == null) return new List<string>();
+        
+        // split by newlines and filter out step numbers if they exist
+        return _recipe.Instructions
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => s.Trim())
+            .Select(s => System.Text.RegularExpressions.Regex.Replace(s, @"^\d+\.\s*", ""))
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .ToList();
+    }
+
+    private async Task HandleLike()
+    {
+        if (_recipe == null) return;
+        
+        _hasLiked = !_hasLiked;
+        _recipe.LikeCount = await RecipeService.ToggleLikeAsync(_recipe.Id);
+    }
+
+    private async Task AddComment()
+    {
+        if (string.IsNullOrWhiteSpace(_newComment) || !AuthService.IsAuthenticated) return;
+
+        var comment = new Comment
+        {
+            RecipeId = Id,
+            UserId = AuthService.CurrentUser!.Id.ToString(),
+            UserName = AuthService.CurrentUser.DisplayName ?? AuthService.CurrentUser.Username,
+            Content = _newComment
+        };
+
+        await CommentService.AddCommentAsync(comment);
+        _comments.Insert(0, comment);
+        _newComment = string.Empty;
+    }
+
+    private void HandleDelete()
+    {
+        _showDeleteConfirm = true;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (_recipe == null) return;
+        
+        await RecipeService.DeleteRecipeAsync(_recipe.Id);
+        Navigation.NavigateTo("/recipes");
+    }
+
+    private async Task CopyLink()
+    {
+        // note: in a real app you'd use JS interop for clipboard
+        _linkCopied = true;
+        await Task.Delay(2000);
+        _linkCopied = false;
+    }
+}

@@ -1,0 +1,13 @@
+<!-- loading spinner component -->
+<div class="loading">
+    <div class="spinner"></div>
+    @if (!string.IsNullOrEmpty(Message))
+    {
+        <p class="text-secondary mt-2">@Message</p>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string? Message { get; set; }
+}

@@ -1,0 +1,138 @@
+@page "/my-recipes"
+@inject RecipeService RecipeService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>My Recipes - FlavorShare</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="empty-state">
+        <div class="empty-state-icon">🔒</div>
+        <h3 class="empty-state-title">Login Required</h3>
+        <p class="empty-state-text">You need to be logged in to view your recipes</p>
+        <a href="/login" class="btn-primary">Login</a>
+    </div>
+}
+else
+{
+    <div class="page-header">
+        <div class="flex justify-between items-center" style="flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <h1 class="page-title">👨‍🍳 My Recipes</h1>
+                <p class="page-subtitle">Manage your culinary creations</p>
+            </div>
+            <a href="/recipe/new" class="btn-primary btn-lg">➕ Add New Recipe</a>
+        </div>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="loading">
+            <div class="spinner"></div>
+        </div>
+    }
+    else if (_myRecipes.Any())
+    {
+        <div class="recipe-grid">
+            @foreach (var recipe in _myRecipes)
+            {
+                <div class="recipe-card" style="cursor: default;">
+                    <a href="/recipe/@recipe.Id">
+                        <div class="recipe-card-image-container">
+                            @if (!string.IsNullOrEmpty(recipe.ImageUrl))
+                            {
+                                <img src="@recipe.ImageUrl" alt="@recipe.Title" class="recipe-card-image" loading="lazy" />
+                            }
+                            else
+                            {
+                                <div class="recipe-card-image" style="background: linear-gradient(135deg, var(--primary-light), var(--primary)); display: flex; align-items: center; justify-content: center; font-size: 3rem;">
+                                    🍽️
+                                </div>
+                            }
+                        </div>
+                    </a>
+                    <div class="recipe-card-content">
+                        <span class="recipe-card-category">@recipe.Category</span>
+                        <h3 class="recipe-card-title">@recipe.Title</h3>
+                        <p class="recipe-card-description">@recipe.Description</p>
+                        <div class="recipe-card-meta">
+                            <span>⏱️ @recipe.TotalTimeMinutes min</span>
+                            <span>❤️ @recipe.LikeCount likes</span>
+                        </div>
+                        <div class="action-buttons mt-2">
+                            <a href="/recipe/@recipe.Id" class="btn-secondary btn-sm">👁️ View</a>
+                            <a href="/recipe/edit/@recipe.Id" class="btn-secondary btn-sm">✏️ Edit</a>
+                            <button class="btn-danger btn-sm" @onclick="() => ConfirmDelete(recipe)">🗑️</button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">
+            <div class="empty-state-icon">📝</div>
+            <h3 class="empty-state-title">No recipes yet</h3>
+            <p class="empty-state-text">Start sharing your culinary creations with the world!</p>
+            <a href="/recipe/new" class="btn-primary">Create Your First Recipe</a>
+        </div>
+    }
+
+    @if (_recipeToDelete != null)
+    {
+        <div style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+            <div class="card" style="max-width: 400px; text-align: center;">
+                <h3 class="card-title">Delete Recipe?</h3>
+                <p class="text-secondary mt-2">Are you sure you want to delete "<strong>@_recipeToDelete.Title</strong>"? This cannot be undone.</p>
+                <div class="flex gap-1 justify-center mt-3">
+                    <button class="btn-secondary" @onclick="() => _recipeToDelete = null">Cancel</button>
+                    <button class="btn-danger" @onclick="HandleDelete">Yes, Delete</button>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private List<Recipe> _myRecipes = new();
+    private Recipe? _recipeToDelete = null;
+    private bool _isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsAuthenticated)
+        {
+            await LoadMyRecipes();
+        }
+    }
+
+    private async Task LoadMyRecipes()
+    {
+        try
+        {
+            var userId = AuthService.CurrentUser!.Id.ToString();
+            _myRecipes = await RecipeService.GetRecipesByAuthorAsync(userId);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void ConfirmDelete(Recipe recipe)
+    {
+        _recipeToDelete = recipe;
+    }
+
+    private async Task HandleDelete()
+    {
+        if (_recipeToDelete == null) return;
+
+        await RecipeService.DeleteRecipeAsync(_recipeToDelete.Id);
+        _myRecipes.Remove(_recipeToDelete);
+        _recipeToDelete = null;
+    }
+}

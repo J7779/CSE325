@@ -1,0 +1,235 @@
+@page "/recipes"
+@inject RecipeService RecipeService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>All Recipes - FlavorShare</PageTitle>
+
+<div class="page-header">
+    <h1 class="page-title">📖 All Recipes</h1>
+    <p class="page-subtitle">Discover delicious recipes from our community</p>
+</div>
+
+<!-- filters and search -->
+<div class="card mb-3">
+    <div class="flex gap-2" style="flex-wrap: wrap; align-items: flex-end;">
+        <div class="form-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+            <label class="form-label">Search</label>
+            <input type="text" 
+                   class="form-input" 
+                   placeholder="Search recipes..."
+                   @bind="_searchTerm"
+                   @bind:event="oninput"
+                   @onkeypress="HandleSearchKeyPress"
+                   aria-label="Search recipes" />
+        </div>
+        
+        <div class="form-group" style="min-width: 150px; margin-bottom: 0;">
+            <label class="form-label">Category</label>
+            <select class="form-select" @bind="_selectedCategory" @bind:after="ApplyFilters">
+                <option value="">All Categories</option>
+                @foreach (var category in _categories)
+                {
+                    <option value="@category">@category</option>
+                }
+            </select>
+        </div>
+        
+        <div class="form-group" style="min-width: 150px; margin-bottom: 0;">
+            <label class="form-label">Difficulty</label>
+            <select class="form-select" @bind="_selectedDifficulty" @bind:after="ApplyFilters">
+                <option value="">All Levels</option>
+                <option value="Easy">Easy</option>
+                <option value="Medium">Medium</option>
+                <option value="Hard">Hard</option>
+                <option value="Expert">Expert</option>
+            </select>
+        </div>
+        
+        <div class="form-group" style="min-width: 150px; margin-bottom: 0;">
+            <label class="form-label">Sort By</label>
+            <select class="form-select" @bind="_sortBy" @bind:after="ApplyFilters">
+                <option value="newest">Newest First</option>
+                <option value="popular">Most Popular</option>
+                <option value="quickest">Quickest</option>
+            </select>
+        </div>
+        
+        <button class="btn-secondary" @onclick="ClearFilters">Clear Filters</button>
+    </div>
+</div>
+
+<!-- results count -->
+@if (!string.IsNullOrEmpty(_searchTerm) || !string.IsNullOrEmpty(_selectedCategory))
+{
+    <p class="text-secondary mb-2">
+        Found @_filteredRecipes.Count recipe(s)
+        @if (!string.IsNullOrEmpty(_searchTerm))
+        {
+            <span> for "<strong>@_searchTerm</strong>"</span>
+        }
+        @if (!string.IsNullOrEmpty(_selectedCategory))
+        {
+            <span> in <strong>@_selectedCategory</strong></span>
+        }
+    </p>
+}
+
+@if (_isLoading)
+{
+    <div class="loading">
+        <div class="spinner"></div>
+    </div>
+}
+else if (_filteredRecipes.Any())
+{
+    <div class="recipe-grid">
+        @foreach (var recipe in _filteredRecipes)
+        {
+            <a href="/recipe/@recipe.Id" class="recipe-card">
+                <div class="recipe-card-image-container">
+                    @if (!string.IsNullOrEmpty(recipe.ImageUrl))
+                    {
+                        <img src="@recipe.ImageUrl" alt="@recipe.Title" class="recipe-card-image" loading="lazy" />
+                    }
+                    else
+                    {
+                        <div class="recipe-card-image" style="background: linear-gradient(135deg, var(--primary-light), var(--primary)); display: flex; align-items: center; justify-content: center; font-size: 3rem;">
+                            🍽️
+                        </div>
+                    }
+                    @if (recipe.IsFeatured)
+                    {
+                        <span class="recipe-card-badge">Featured</span>
+                    }
+                </div>
+                <div class="recipe-card-content">
+                    <span class="recipe-card-category">@recipe.Category</span>
+                    <h3 class="recipe-card-title">@recipe.Title</h3>
+                    <p class="recipe-card-description">@recipe.Description</p>
+                    <div class="recipe-card-meta">
+                        <span>⏱️ @recipe.TotalTimeMinutes min</span>
+                        <span>👥 @recipe.Servings servings</span>
+                        <span class="difficulty-badge difficulty-@recipe.Difficulty.ToString().ToLower()">@recipe.Difficulty</span>
+                    </div>
+                    <div class="recipe-card-footer">
+                        <div class="recipe-card-author">
+                            <span class="recipe-card-author-avatar">@(recipe.AuthorName?[0] ?? 'U')</span>
+                            <span>@recipe.AuthorName</span>
+                        </div>
+                        <div class="recipe-card-likes">
+                            ❤️ @recipe.LikeCount
+                        </div>
+                    </div>
+                </div>
+            </a>
+        }
+    </div>
+}
+else
+{
+    <div class="empty-state">
+        <div class="empty-state-icon">🔍</div>
+        <h3 class="empty-state-title">No recipes found</h3>
+        <p class="empty-state-text">Try adjusting your search or filters</p>
+        <button class="btn-primary" @onclick="ClearFilters">Clear All Filters</button>
+    </div>
+}
+
+@code {
+    private List<Recipe> _allRecipes = new();
+    private List<Recipe> _filteredRecipes = new();
+    private List<string> _categories = new();
+    private string _searchTerm = string.Empty;
+    private string _selectedCategory = string.Empty;
+    private string _selectedDifficulty = string.Empty;
+    private string _sortBy = "newest";
+    private bool _isLoading = true;
+
+    [SupplyParameterFromQuery(Name = "search")]
+    public string? SearchQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "category")]
+    public string? CategoryQuery { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _allRecipes = await RecipeService.GetAllRecipesAsync();
+            _categories = await RecipeService.GetCategoriesAsync();
+
+            // check for query params
+            if (!string.IsNullOrEmpty(SearchQuery))
+            {
+                _searchTerm = SearchQuery;
+            }
+            if (!string.IsNullOrEmpty(CategoryQuery))
+            {
+                _selectedCategory = CategoryQuery;
+            }
+
+            ApplyFilters();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        var filtered = _allRecipes.AsEnumerable();
+
+        // search filter
+        if (!string.IsNullOrWhiteSpace(_searchTerm))
+        {
+            var term = _searchTerm.ToLower();
+            filtered = filtered.Where(r => 
+                r.Title.ToLower().Contains(term) ||
+                r.Description.ToLower().Contains(term) ||
+                (r.Tags?.ToLower().Contains(term) ?? false) ||
+                r.Category.ToLower().Contains(term));
+        }
+
+        // category filter
+        if (!string.IsNullOrWhiteSpace(_selectedCategory))
+        {
+            filtered = filtered.Where(r => r.Category == _selectedCategory);
+        }
+
+        // difficulty filter
+        if (!string.IsNullOrWhiteSpace(_selectedDifficulty) && 
+            Enum.TryParse<DifficultyLevel>(_selectedDifficulty, out var difficulty))
+        {
+            filtered = filtered.Where(r => r.Difficulty == difficulty);
+        }
+
+        // sorting
+        filtered = _sortBy switch
+        {
+            "popular" => filtered.OrderByDescending(r => r.LikeCount),
+            "quickest" => filtered.OrderBy(r => r.TotalTimeMinutes),
+            _ => filtered.OrderByDescending(r => r.CreatedAt)
+        };
+
+        _filteredRecipes = filtered.ToList();
+    }
+
+    private void HandleSearchKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            ApplyFilters();
+        }
+    }
+
+    private void ClearFilters()
+    {
+        _searchTerm = string.Empty;
+        _selectedCategory = string.Empty;
+        _selectedDifficulty = string.Empty;
+        _sortBy = "newest";
+        ApplyFilters();
+    }
+}
