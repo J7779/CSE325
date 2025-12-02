@@ -1354,3 +1354,58 @@ body {
     gap: 2rem;
     margin-top: 1rem;
 }
+
+.loading-screen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: var(--bg-secondary);
+}
+
+.loading-content {
+    text-align: center;
+}
+
+.loading-logo {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    animation: bounce 1s infinite;
+}
+
+.loading-content h1 {
+    font-size: 2rem;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 1.5rem;
+}
+
+.loading-content p {
+    color: var(--text-secondary);
+    margin-top: 1rem;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+#blazor-error-ui {
+    background: #ff6b6b;
+    color: white;
+    padding: 1rem;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    text-align: center;
+    display: none;
+    z-index: 9999;
+}
+
+#blazor-error-ui .reload, #blazor-error-ui .dismiss {
+    color: white;
+    margin-left: 1rem;
+    cursor: pointer;
+}

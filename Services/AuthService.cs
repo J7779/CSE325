@@ -1,7 +1,5 @@
 using GroupProject.Models;
 using GroupProject.Data;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace GroupProject.Services;
 
@@ -116,15 +114,17 @@ public class AuthService
         return Task.FromResult((true, "profile updated successfully"));
     }
 
-    // simple password hashing - in production you'd use bcrypt or similar
     private string HashPassword(string password)
     {
-        using var sha256 = SHA256.Create();
-        var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password + "recipe_salt_2025"));
-        return Convert.ToBase64String(bytes);
+        var bytes = System.Text.Encoding.UTF8.GetBytes(password + "recipe_salt_2025");
+        var hash = 0;
+        foreach (var b in bytes)
+        {
+            hash = ((hash << 5) + hash) ^ b;
+        }
+        return hash.ToString("X8");
     }
 
-    // check if a username is available
     public Task<bool> IsUsernameAvailableAsync(string username)
     {
         return Task.FromResult(!_users.Any(u => 

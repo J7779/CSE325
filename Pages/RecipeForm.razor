@@ -1,0 +1,280 @@
+@page "/recipe/new"
+@page "/recipe/edit/{Id:int}"
+@inject RecipeService RecipeService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+
+<PageTitle>@(_isEditing ? "Edit Recipe" : "Add New Recipe") - FlavorShare</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="empty-state">
+        <div class="empty-state-icon">🔒</div>
+        <h3 class="empty-state-title">Login Required</h3>
+        <p class="empty-state-text">You need to be logged in to create or edit recipes</p>
+        <a href="login" class="btn-primary">Login</a>
+    </div>
+}
+else
+{
+    <div class="page-header">
+        <h1 class="page-title">@(_isEditing ? "✏️ Edit Recipe" : "➕ Create New Recipe")</h1>
+        <p class="page-subtitle">@(_isEditing ? "Update your recipe details" : "Share your culinary creation with the world")</p>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-error">
+            ⚠️ @_errorMessage
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_successMessage))
+    {
+        <div class="alert alert-success">
+            ✅ @_successMessage
+        </div>
+    }
+
+    <EditForm Model="_recipe" OnValidSubmit="HandleSubmit" FormName="recipeForm">
+        <DataAnnotationsValidator />
+
+        <div class="card mb-2">
+            <h2 class="card-title">📝 Basic Info</h2>
+
+            <div class="form-group">
+                <label class="form-label" for="title">Recipe Title *</label>
+                <InputText id="title" class="form-input" @bind-Value="_recipe.Title" 
+                           placeholder="e.g., Grandma's Famous Chocolate Cake" />
+                <ValidationMessage For="@(() => _recipe.Title)" class="form-error" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="description">Description *</label>
+                <InputTextArea id="description" class="form-textarea" @bind-Value="_recipe.Description" 
+                               placeholder="Tell people what makes this recipe special..."
+                               rows="3" />
+                <ValidationMessage For="@(() => _recipe.Description)" class="form-error" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="imageUrl">Image URL (optional)</label>
+                <InputText id="imageUrl" class="form-input" @bind-Value="_recipe.ImageUrl" 
+                           placeholder="https://example.com/your-image.jpg" />
+                <p class="form-hint">Paste a URL to an image of your dish</p>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label" for="category">Category *</label>
+                    <InputSelect id="category" class="form-select" @bind-Value="_recipe.Category">
+                        <option value="">Select a category</option>
+                        <option value="Breakfast">Breakfast</option>
+                        <option value="Lunch">Lunch</option>
+                        <option value="Dinner">Dinner</option>
+                        <option value="Appetizer">Appetizer</option>
+                        <option value="Dessert">Dessert</option>
+                        <option value="Snack">Snack</option>
+                        <option value="Pasta">Pasta</option>
+                        <option value="Seafood">Seafood</option>
+                        <option value="Mexican">Mexican</option>
+                        <option value="Curry">Curry</option>
+                        <option value="Salad">Salad</option>
+                        <option value="Soup">Soup</option>
+                        <option value="Other">Other</option>
+                    </InputSelect>
+                    <ValidationMessage For="@(() => _recipe.Category)" class="form-error" />
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="cuisine">Cuisine (optional)</label>
+                    <InputText id="cuisine" class="form-input" @bind-Value="_recipe.Cuisine" 
+                               placeholder="e.g., Italian, Mexican, Thai" />
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="difficulty">Difficulty *</label>
+                    <InputSelect id="difficulty" class="form-select" @bind-Value="_recipe.Difficulty">
+                        <option value="@DifficultyLevel.Easy">Easy</option>
+                        <option value="@DifficultyLevel.Medium">Medium</option>
+                        <option value="@DifficultyLevel.Hard">Hard</option>
+                        <option value="@DifficultyLevel.Expert">Expert</option>
+                    </InputSelect>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-2">
+            <h2 class="card-title">⏱️ Time & Servings</h2>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label" for="prepTime">Prep Time (minutes) *</label>
+                    <InputNumber id="prepTime" class="form-input" @bind-Value="_recipe.PrepTimeMinutes" min="1" max="480" />
+                    <ValidationMessage For="@(() => _recipe.PrepTimeMinutes)" class="form-error" />
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="cookTime">Cook Time (minutes) *</label>
+                    <InputNumber id="cookTime" class="form-input" @bind-Value="_recipe.CookTimeMinutes" min="0" max="1440" />
+                    <ValidationMessage For="@(() => _recipe.CookTimeMinutes)" class="form-error" />
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="servings">Servings *</label>
+                    <InputNumber id="servings" class="form-input" @bind-Value="_recipe.Servings" min="1" max="50" />
+                    <ValidationMessage For="@(() => _recipe.Servings)" class="form-error" />
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-2">
+            <h2 class="card-title">🥗 Ingredients</h2>
+
+            <div class="form-group">
+                <label class="form-label" for="ingredients">Ingredients List *</label>
+                <InputTextArea id="ingredients" class="form-textarea" @bind-Value="_recipe.Ingredients" 
+                               placeholder="Enter each ingredient on a new line, e.g.:
+2 cups all-purpose flour
+1 cup sugar
+3 large eggs
+1/2 cup butter, softened"
+                               rows="8" />
+                <p class="form-hint">Put each ingredient on its own line</p>
+                <ValidationMessage For="@(() => _recipe.Ingredients)" class="form-error" />
+            </div>
+        </div>
+
+        <div class="card mb-2">
+            <h2 class="card-title">👨‍🍳 Instructions</h2>
+
+            <div class="form-group">
+                <label class="form-label" for="instructions">Step-by-Step Instructions *</label>
+                <InputTextArea id="instructions" class="form-textarea" @bind-Value="_recipe.Instructions" 
+                               placeholder="Enter each step on a new line, e.g.:
+1. Preheat oven to 350°F
+2. Mix dry ingredients in a large bowl
+3. Add wet ingredients and stir until combined
+4. Pour batter into prepared pan
+5. Bake for 30-35 minutes"
+                               rows="10" />
+                <p class="form-hint">Each line will become a numbered step</p>
+                <ValidationMessage For="@(() => _recipe.Instructions)" class="form-error" />
+            </div>
+        </div>
+
+        <div class="card mb-2">
+            <h2 class="card-title">🏷️ Tags (Optional)</h2>
+
+            <div class="form-group">
+                <label class="form-label" for="tags">Tags</label>
+                <InputText id="tags" class="form-input" @bind-Value="_recipe.Tags" 
+                           placeholder="e.g., quick, vegetarian, gluten-free, date night" />
+                <p class="form-hint">Separate tags with commas to help people find your recipe</p>
+            </div>
+        </div>
+
+        <div class="flex gap-2" style="justify-content: flex-end;">
+            <a href="@(_isEditing ? $"/recipe/{Id}" : "/recipes")" class="btn-secondary">Cancel</a>
+            <button type="submit" class="btn-primary btn-lg" disabled="@_isSubmitting">
+                @if (_isSubmitting)
+                {
+                    <span>Saving...</span>
+                }
+                else
+                {
+                    <span>@(_isEditing ? "💾 Save Changes" : "🎉 Publish Recipe")</span>
+                }
+            </button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int? Id { get; set; }
+
+    private Recipe _recipe = new();
+    private bool _isEditing => Id.HasValue;
+    private bool _isSubmitting = false;
+    private string _errorMessage = string.Empty;
+    private string _successMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (_isEditing && Id.HasValue)
+        {
+            var existing = await RecipeService.GetRecipeByIdAsync(Id.Value);
+            if (existing != null)
+            {
+                // check if user owns this recipe
+                if (AuthService.IsAuthenticated && 
+                    AuthService.CurrentUser?.Id.ToString() == existing.AuthorId)
+                {
+                    _recipe = existing;
+                }
+                else
+                {
+                    Navigation.NavigateTo($"/recipe/{Id}");
+                }
+            }
+            else
+            {
+                Navigation.NavigateTo("recipes");
+            }
+        }
+        else
+        {
+            // set defaults for new recipe
+            _recipe.Servings = 4;
+            _recipe.PrepTimeMinutes = 15;
+            _recipe.CookTimeMinutes = 30;
+            _recipe.Difficulty = DifficultyLevel.Medium;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        _isSubmitting = true;
+        _errorMessage = string.Empty;
+        _successMessage = string.Empty;
+
+        try
+        {
+            if (_isEditing)
+            {
+                var updated = await RecipeService.UpdateRecipeAsync(_recipe);
+                if (updated != null)
+                {
+                    _successMessage = "Recipe updated successfully!";
+                    await Task.Delay(1000);
+                    Navigation.NavigateTo($"/recipe/{Id}");
+                }
+                else
+                {
+                    _errorMessage = "Failed to update recipe. Please try again.";
+                }
+            }
+            else
+            {
+                // set author info
+                _recipe.AuthorId = AuthService.CurrentUser!.Id.ToString();
+                _recipe.AuthorName = AuthService.CurrentUser.DisplayName ?? AuthService.CurrentUser.Username;
+                
+                var created = await RecipeService.CreateRecipeAsync(_recipe);
+                _successMessage = "Recipe created successfully!";
+                await Task.Delay(1000);
+                Navigation.NavigateTo($"/recipe/{created.Id}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Something went wrong: {ex.Message}";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+}

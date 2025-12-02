@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Users\\Rex\\Documents\\GitHub\\CSE325\\GroupProject.csproj": {}
+    "C:\\Users\\Rex\\Documents\\GitHub\\CSE325\\GroupProject.csproj": {}
   },
   "projects": {
-    "c:\\Users\\Rex\\Documents\\GitHub\\CSE325\\GroupProject.csproj": {
+    "C:\\Users\\Rex\\Documents\\GitHub\\CSE325\\GroupProject.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\Rex\\Documents\\GitHub\\CSE325\\GroupProject.csproj",
+        "projectUniqueName": "C:\\Users\\Rex\\Documents\\GitHub\\CSE325\\GroupProject.csproj",
         "projectName": "GroupProject",
-        "projectPath": "c:\\Users\\Rex\\Documents\\GitHub\\CSE325\\GroupProject.csproj",
+        "projectPath": "C:\\Users\\Rex\\Documents\\GitHub\\CSE325\\GroupProject.csproj",
         "packagesPath": "C:\\Users\\Rex\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\Rex\\Documents\\GitHub\\CSE325\\obj\\",
+        "outputPath": "C:\\Users\\Rex\\Documents\\GitHub\\CSE325\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -50,13 +50,26 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "dependencies": {
-            "Microsoft.EntityFrameworkCore.InMemory": {
+            "Microsoft.AspNetCore.Components.WebAssembly": {
               "target": "Package",
               "version": "[9.0.0, )"
             },
-            "Microsoft.EntityFrameworkCore.SqlServer": {
+            "Microsoft.AspNetCore.Components.WebAssembly.DevServer": {
+              "suppressParent": "All",
               "target": "Package",
               "version": "[9.0.0, )"
+            },
+            "Microsoft.NET.ILLink.Tasks": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[9.0.10, )",
+              "autoReferenced": true
+            },
+            "Microsoft.NET.Sdk.WebAssembly.Pack": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[9.0.10, )",
+              "autoReferenced": true
             }
           },
           "imports": [
@@ -70,15 +83,23 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.NETCore.App.Runtime.Mono.browser-wasm",
+              "version": "[9.0.10, 9.0.10]"
+            }
+          ],
           "frameworkReferences": {
-            "Microsoft.AspNetCore.App": {
-              "privateAssets": "none"
-            },
             "Microsoft.NETCore.App": {
               "privateAssets": "all"
             }
           },
           "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.306/PortableRuntimeIdentifierGraph.json"
+        }
+      },
+      "runtimes": {
+        "browser-wasm": {
+          "#import": []
         }
       }
     }

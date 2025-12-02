@@ -1,0 +1,17 @@
+<Router AppAssembly="@typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)" />
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <PageTitle>Not found</PageTitle>
+        <LayoutView Layout="@typeof(Layout.MainLayout)">
+            <div class="empty-state">
+                <div class="empty-state-icon">😕</div>
+                <h3 class="empty-state-title">Page not found</h3>
+                <p class="empty-state-text">Sorry, the page you're looking for doesn't exist.</p>
+                <a href="/" class="btn-primary">Go Home</a>
+            </div>
+        </LayoutView>
+    </NotFound>
+</Router>

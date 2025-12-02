@@ -1,0 +1,211 @@
+@page "/"
+@inject RecipeService RecipeService
+@inject NavigationManager Navigation
+
+
+<PageTitle>FlavorShare - Discover & Share Recipes</PageTitle>
+
+<!-- hero section with search -->
+<section class="hero">
+    <div class="hero-content">
+        <h1>?? Discover Delicious Recipes</h1>
+        <p>Find and share amazing recipes from home cooks around the world. Your next favorite dish is just a search away!</p>
+        <div class="search-container">
+            <div class="search-box">
+                <input type="text" 
+                       placeholder="Search recipes, ingredients, cuisines..." 
+                       @bind="_searchTerm" 
+                       @bind:event="oninput"
+                       @onkeypress="HandleSearchKeyPress"
+                       aria-label="Search recipes" />
+                <button @onclick="HandleSearch" aria-label="Search">Search</button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- featured recipes section -->
+<section class="mb-3">
+    <div class="section-header">
+        <h2 class="section-title">?? Featured Recipes</h2>
+        <a href="recipes" class="section-link">View All ?</a>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="loading">
+            <div class="spinner"></div>
+        </div>
+    }
+    else if (_featuredRecipes?.Any() == true)
+    {
+        <div class="recipe-grid">
+            @foreach (var recipe in _featuredRecipes)
+            {
+                <a href="recipe/@recipe.Id" class="recipe-card">
+                    <div class="recipe-card-image-container">
+                        @if (!string.IsNullOrEmpty(recipe.ImageUrl))
+                        {
+                            <img src="@recipe.ImageUrl" alt="@recipe.Title" class="recipe-card-image" loading="lazy" />
+                        }
+                        else
+                        {
+                            <div class="recipe-card-image" style="background: linear-gradient(135deg, var(--primary-light), var(--primary)); display: flex; align-items: center; justify-content: center; font-size: 3rem;">
+                                ???
+                            </div>
+                        }
+                        @if (recipe.IsFeatured)
+                        {
+                            <span class="recipe-card-badge">Featured</span>
+                        }
+                    </div>
+                    <div class="recipe-card-content">
+                        <span class="recipe-card-category">@recipe.Category</span>
+                        <h3 class="recipe-card-title">@recipe.Title</h3>
+                        <p class="recipe-card-description">@recipe.Description</p>
+                        <div class="recipe-card-meta">
+                            <span>?? @recipe.TotalTimeMinutes min</span>
+                            <span>?? @recipe.Servings servings</span>
+                            <span class="difficulty-badge difficulty-@recipe.Difficulty.ToString().ToLower()">@recipe.Difficulty</span>
+                        </div>
+                        <div class="recipe-card-footer">
+                            <div class="recipe-card-author">
+                                <span class="recipe-card-author-avatar">@(recipe.AuthorName?[0] ?? 'U')</span>
+                                <span>@recipe.AuthorName</span>
+                            </div>
+                            <div class="recipe-card-likes">
+                                ?? @recipe.LikeCount
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">
+            <div class="empty-state-icon">??</div>
+            <h3 class="empty-state-title">No recipes yet</h3>
+            <p class="empty-state-text">Be the first to share a delicious recipe!</p>
+        </div>
+    }
+</section>
+
+<!-- categories preview -->
+<section class="mb-3">
+    <div class="section-header">
+        <h2 class="section-title">?? Browse by Category</h2>
+        <a href="categories" class="section-link">All Categories ?</a>
+    </div>
+
+    <div class="category-grid">
+        @foreach (var category in _categories)
+        {
+            <a href="recipes?category=@category.Name" class="category-card">
+                <div class="category-icon">@category.Icon</div>
+                <div class="category-name">@category.Name</div>
+                <div class="category-count">@category.Count recipes</div>
+            </a>
+        }
+    </div>
+</section>
+
+<!-- quick recipes section -->
+<section>
+    <div class="section-header">
+        <h2 class="section-title">? Quick & Easy (Under 30 min)</h2>
+    </div>
+
+    @if (_quickRecipes?.Any() == true)
+    {
+        <div class="recipe-grid">
+            @foreach (var recipe in _quickRecipes.Take(3))
+            {
+                <a href="recipe/@recipe.Id" class="recipe-card">
+                    <div class="recipe-card-image-container">
+                        @if (!string.IsNullOrEmpty(recipe.ImageUrl))
+                        {
+                            <img src="@recipe.ImageUrl" alt="@recipe.Title" class="recipe-card-image" loading="lazy" />
+                        }
+                        else
+                        {
+                            <div class="recipe-card-image" style="background: linear-gradient(135deg, var(--accent), var(--accent-light)); display: flex; align-items: center; justify-content: center; font-size: 3rem;">
+                                ???
+                            </div>
+                        }
+                    </div>
+                    <div class="recipe-card-content">
+                        <span class="recipe-card-category">@recipe.Category</span>
+                        <h3 class="recipe-card-title">@recipe.Title</h3>
+                        <p class="recipe-card-description">@recipe.Description</p>
+                        <div class="recipe-card-meta">
+                            <span>?? @recipe.TotalTimeMinutes min</span>
+                            <span>?? @recipe.Servings servings</span>
+                        </div>
+                    </div>
+                </a>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    private List<Recipe>? _featuredRecipes;
+    private List<Recipe>? _quickRecipes;
+    private List<CategoryInfo> _categories = new();
+    private string _searchTerm = string.Empty;
+    private bool _isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // load all the data for the home page
+            _featuredRecipes = await RecipeService.GetFeaturedRecipesAsync(6);
+            _quickRecipes = await RecipeService.GetQuickRecipesAsync();
+            
+            // get category counts
+            var allRecipes = await RecipeService.GetAllRecipesAsync();
+            var categoryGroups = allRecipes.GroupBy(r => r.Category);
+            
+            _categories = new List<CategoryInfo>
+            {
+                new CategoryInfo { Name = "Breakfast", Icon = "??", Count = categoryGroups.FirstOrDefault(g => g.Key == "Breakfast")?.Count() ?? 0 },
+                new CategoryInfo { Name = "Pasta", Icon = "??", Count = categoryGroups.FirstOrDefault(g => g.Key == "Pasta")?.Count() ?? 0 },
+                new CategoryInfo { Name = "Dessert", Icon = "??", Count = categoryGroups.FirstOrDefault(g => g.Key == "Dessert")?.Count() ?? 0 },
+                new CategoryInfo { Name = "Seafood", Icon = "??", Count = categoryGroups.FirstOrDefault(g => g.Key == "Seafood")?.Count() ?? 0 },
+                new CategoryInfo { Name = "Mexican", Icon = "??", Count = categoryGroups.FirstOrDefault(g => g.Key == "Mexican")?.Count() ?? 0 },
+                new CategoryInfo { Name = "Curry", Icon = "??", Count = categoryGroups.FirstOrDefault(g => g.Key == "Curry")?.Count() ?? 0 }
+            };
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void HandleSearch()
+    {
+        if (!string.IsNullOrWhiteSpace(_searchTerm))
+        {
+            Navigation.NavigateTo($"/recipes?search={Uri.EscapeDataString(_searchTerm)}");
+        }
+    }
+
+    private void HandleSearchKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            HandleSearch();
+        }
+    }
+
+    // helper class for category display
+    private class CategoryInfo
+    {
+        public string Name { get; set; } = "";
+        public string Icon { get; set; } = "";
+        public int Count { get; set; }
+    }
+}

@@ -1,0 +1,183 @@
+@page "/profile"
+@inject AuthService AuthService
+@inject RecipeService RecipeService
+@inject NavigationManager Navigation
+
+
+<PageTitle>Profile - FlavorShare</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="empty-state">
+        <div class="empty-state-icon">🔒</div>
+        <h3 class="empty-state-title">Login Required</h3>
+        <p class="empty-state-text">You need to be logged in to view your profile</p>
+        <a href="login" class="btn-primary">Login</a>
+    </div>
+}
+else
+{
+    <div class="card mb-3">
+        <div class="profile-header">
+            <div class="profile-avatar-large">
+                @(AuthService.CurrentUser?.DisplayName?[0] ?? AuthService.CurrentUser?.Username?[0] ?? 'U')
+            </div>
+            <div class="profile-info">
+                <h1>@(AuthService.CurrentUser?.DisplayName ?? AuthService.CurrentUser?.Username)</h1>
+                <p class="text-secondary">@AuthService.CurrentUser?.Email</p>
+                @if (!string.IsNullOrEmpty(AuthService.CurrentUser?.Bio))
+                {
+                    <p class="mt-1">@AuthService.CurrentUser.Bio</p>
+                }
+                <div class="profile-stats">
+                    <div class="author-stat">
+                        <div class="author-stat-value">@_myRecipeCount</div>
+                        <div class="author-stat-label">Recipes</div>
+                    </div>
+                    <div class="author-stat">
+                        <div class="author-stat-value">@_totalLikes</div>
+                        <div class="author-stat-label">Total Likes</div>
+                    </div>
+                    <div class="author-stat">
+                        <div class="author-stat-value">@AuthService.CurrentUser?.FollowerCount</div>
+                        <div class="author-stat-label">Followers</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- edit profile section -->
+    <div class="card mb-3">
+        <h2 class="card-title">✏️ Edit Profile</h2>
+
+        @if (!string.IsNullOrEmpty(_message))
+        {
+            <div class="alert @(_isSuccess ? "alert-success" : "alert-error") mt-2">
+                @_message
+            </div>
+        }
+
+        <div class="form-group mt-2">
+            <label class="form-label">Display Name</label>
+            <input type="text" class="form-input" @bind="_displayName" placeholder="Your display name" />
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Bio</label>
+            <textarea class="form-textarea" @bind="_bio" placeholder="Tell people about yourself..." rows="3"></textarea>
+        </div>
+
+        <button class="btn-primary" @onclick="SaveProfile" disabled="@_isSaving">
+            @(_isSaving ? "Saving..." : "💾 Save Changes")
+        </button>
+    </div>
+
+    <!-- my recipes preview -->
+    <div class="section-header">
+        <h2 class="section-title">📖 My Recipes</h2>
+        <a href="my-recipes" class="section-link">View All →</a>
+    </div>
+
+    @if (_myRecipes.Any())
+    {
+        <div class="recipe-grid">
+            @foreach (var recipe in _myRecipes.Take(3))
+            {
+                <a href="recipe/@recipe.Id" class="recipe-card">
+                    <div class="recipe-card-image-container">
+                        @if (!string.IsNullOrEmpty(recipe.ImageUrl))
+                        {
+                            <img src="@recipe.ImageUrl" alt="@recipe.Title" class="recipe-card-image" loading="lazy" />
+                        }
+                        else
+                        {
+                            <div class="recipe-card-image" style="background: linear-gradient(135deg, var(--primary-light), var(--primary)); display: flex; align-items: center; justify-content: center; font-size: 3rem;">
+                                🍽️
+                            </div>
+                        }
+                    </div>
+                    <div class="recipe-card-content">
+                        <h3 class="recipe-card-title">@recipe.Title</h3>
+                        <div class="recipe-card-meta">
+                            <span>❤️ @recipe.LikeCount likes</span>
+                        </div>
+                    </div>
+                </a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="card text-center">
+            <p class="text-secondary">You haven't created any recipes yet.</p>
+            <a href="recipe/new" class="btn-primary mt-2">Create Your First Recipe</a>
+        </div>
+    }
+
+    <!-- danger zone -->
+    <div class="card mt-3" style="border: 2px solid rgba(231, 76, 60, 0.3);">
+        <h2 class="card-title" style="color: #e74c3c;">⚠️ Danger Zone</h2>
+        <p class="text-secondary mt-1">Be careful with these actions</p>
+        <button class="btn-danger mt-2" @onclick="HandleLogout">🚪 Logout</button>
+    </div>
+}
+
+@code {
+    private string _displayName = string.Empty;
+    private string _bio = string.Empty;
+    private List<Recipe> _myRecipes = new();
+    private int _myRecipeCount = 0;
+    private int _totalLikes = 0;
+    private bool _isSaving = false;
+    private string _message = string.Empty;
+    private bool _isSuccess = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsAuthenticated && AuthService.CurrentUser != null)
+        {
+            _displayName = AuthService.CurrentUser.DisplayName ?? AuthService.CurrentUser.Username;
+            _bio = AuthService.CurrentUser.Bio ?? string.Empty;
+
+            // load user's recipes
+            var userId = AuthService.CurrentUser.Id.ToString();
+            _myRecipes = await RecipeService.GetRecipesByAuthorAsync(userId);
+            _myRecipeCount = _myRecipes.Count;
+            _totalLikes = _myRecipes.Sum(r => r.LikeCount);
+        }
+    }
+
+    private async Task SaveProfile()
+    {
+        if (AuthService.CurrentUser == null) return;
+
+        _isSaving = true;
+        _message = string.Empty;
+
+        try
+        {
+            AuthService.CurrentUser.DisplayName = _displayName;
+            AuthService.CurrentUser.Bio = _bio;
+
+            var (success, message) = await AuthService.UpdateProfileAsync(AuthService.CurrentUser);
+            _isSuccess = success;
+            _message = message;
+        }
+        catch (Exception ex)
+        {
+            _isSuccess = false;
+            _message = $"Failed to update profile: {ex.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task HandleLogout()
+    {
+        await AuthService.LogoutAsync();
+        Navigation.NavigateTo("");
+    }
+}

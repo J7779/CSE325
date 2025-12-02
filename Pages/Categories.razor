@@ -1,0 +1,112 @@
+@page "/categories"
+@inject RecipeService RecipeService
+@inject NavigationManager Navigation
+
+
+<PageTitle>Categories - FlavorShare</PageTitle>
+
+<div class="page-header">
+    <h1 class="page-title">🏷️ Recipe Categories</h1>
+    <p class="page-subtitle">Browse recipes by category to find exactly what you're craving</p>
+</div>
+
+<div class="category-grid" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
+    @foreach (var category in _categories)
+    {
+        <a href="recipes?category=@category.Name" class="category-card @(category.Name == _selectedCategory ? "active" : "")">
+            <div class="category-icon">@category.Icon</div>
+            <div class="category-name">@category.Name</div>
+            <div class="category-count">@category.Count recipes</div>
+        </a>
+    }
+</div>
+
+@if (!string.IsNullOrEmpty(_selectedCategory))
+{
+    <div class="section-header mt-3">
+        <h2 class="section-title">@_selectedCategory Recipes</h2>
+        <button class="btn-secondary btn-sm" @onclick="ClearSelection">Clear</button>
+    </div>
+
+    @if (_categoryRecipes.Any())
+    {
+        <div class="recipe-grid">
+            @foreach (var recipe in _categoryRecipes)
+            {
+                <a href="recipe/@recipe.Id" class="recipe-card">
+                    <div class="recipe-card-image-container">
+                        @if (!string.IsNullOrEmpty(recipe.ImageUrl))
+                        {
+                            <img src="@recipe.ImageUrl" alt="@recipe.Title" class="recipe-card-image" loading="lazy" />
+                        }
+                        else
+                        {
+                            <div class="recipe-card-image" style="background: linear-gradient(135deg, var(--primary-light), var(--primary)); display: flex; align-items: center; justify-content: center; font-size: 3rem;">
+                                🍽️
+                            </div>
+                        }
+                    </div>
+                    <div class="recipe-card-content">
+                        <h3 class="recipe-card-title">@recipe.Title</h3>
+                        <p class="recipe-card-description">@recipe.Description</p>
+                        <div class="recipe-card-meta">
+                            <span>⏱️ @recipe.TotalTimeMinutes min</span>
+                            <span>❤️ @recipe.LikeCount</span>
+                        </div>
+                    </div>
+                </a>
+            }
+        </div>
+    }
+}
+
+@code {
+    private List<CategoryInfo> _categories = new();
+    private List<Recipe> _categoryRecipes = new();
+    private string _selectedCategory = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var allRecipes = await RecipeService.GetAllRecipesAsync();
+        var categoryGroups = allRecipes.GroupBy(r => r.Category).ToList();
+
+        // build our category list with icons and counts
+        _categories = new List<CategoryInfo>
+        {
+            new() { Name = "Breakfast", Icon = "🍳", Count = categoryGroups.FirstOrDefault(g => g.Key == "Breakfast")?.Count() ?? 0 },
+            new() { Name = "Lunch", Icon = "🥪", Count = categoryGroups.FirstOrDefault(g => g.Key == "Lunch")?.Count() ?? 0 },
+            new() { Name = "Dinner", Icon = "🍽️", Count = categoryGroups.FirstOrDefault(g => g.Key == "Dinner")?.Count() ?? 0 },
+            new() { Name = "Appetizer", Icon = "🧀", Count = categoryGroups.FirstOrDefault(g => g.Key == "Appetizer")?.Count() ?? 0 },
+            new() { Name = "Dessert", Icon = "🍰", Count = categoryGroups.FirstOrDefault(g => g.Key == "Dessert")?.Count() ?? 0 },
+            new() { Name = "Snack", Icon = "🍿", Count = categoryGroups.FirstOrDefault(g => g.Key == "Snack")?.Count() ?? 0 },
+            new() { Name = "Pasta", Icon = "🍝", Count = categoryGroups.FirstOrDefault(g => g.Key == "Pasta")?.Count() ?? 0 },
+            new() { Name = "Seafood", Icon = "🐟", Count = categoryGroups.FirstOrDefault(g => g.Key == "Seafood")?.Count() ?? 0 },
+            new() { Name = "Mexican", Icon = "🌮", Count = categoryGroups.FirstOrDefault(g => g.Key == "Mexican")?.Count() ?? 0 },
+            new() { Name = "Curry", Icon = "🍛", Count = categoryGroups.FirstOrDefault(g => g.Key == "Curry")?.Count() ?? 0 },
+            new() { Name = "Salad", Icon = "🥗", Count = categoryGroups.FirstOrDefault(g => g.Key == "Salad")?.Count() ?? 0 },
+            new() { Name = "Soup", Icon = "🍲", Count = categoryGroups.FirstOrDefault(g => g.Key == "Soup")?.Count() ?? 0 }
+        };
+
+        // filter to only show categories that have recipes
+        _categories = _categories.Where(c => c.Count > 0).ToList();
+    }
+
+    private async Task SelectCategory(string category)
+    {
+        _selectedCategory = category;
+        _categoryRecipes = await RecipeService.GetRecipesByCategoryAsync(category);
+    }
+
+    private void ClearSelection()
+    {
+        _selectedCategory = string.Empty;
+        _categoryRecipes.Clear();
+    }
+
+    private class CategoryInfo
+    {
+        public string Name { get; set; } = "";
+        public string Icon { get; set; } = "";
+        public int Count { get; set; }
+    }
+}
